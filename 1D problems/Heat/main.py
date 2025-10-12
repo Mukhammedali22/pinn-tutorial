@@ -314,46 +314,46 @@ if __name__ == "__main__":
     plt.show()
 
 
-def make_gif(X, T, U_pred, U_true, filename="pinn_vs_true.gif"):
-    fig, axes = plt.subplots(1, 2, figsize=(10, 4))
-    ax1, ax2 = axes
+    def make_gif(X, T, U_pred, U_true, filename="pinn_vs_true.gif"):
+        fig, axes = plt.subplots(1, 2, figsize=(10, 4))
+        ax1, ax2 = axes
 
-    y_min = min(U_pred.min(), U_true.min()) - 0.1
-    y_max = max(U_pred.max(), U_true.max()) + 0.1
-    t_values = T[:, 0]
+        y_min = min(U_pred.min(), U_true.min()) - 0.1
+        y_max = max(U_pred.max(), U_true.max()) + 0.1
+        t_values = T[:, 0]
 
-    line1, = ax1.plot([], [], lw=2, color='darkorange')
-    ax1.set_xlim(X.min(), X.max())
-    ax1.set_ylim(y_min, y_max)
-    ax1.set_title("PINN prediction")
-    ax1.set_xlabel("x")
-    ax1.set_ylabel("u(x,t)")
-    ax1.grid(True)
+        line1, = ax1.plot([], [], lw=2, color='darkorange')
+        ax1.set_xlim(X.min(), X.max())
+        ax1.set_ylim(y_min, y_max)
+        ax1.set_title("PINN prediction")
+        ax1.set_xlabel("x")
+        ax1.set_ylabel("u(x,t)")
+        ax1.grid(True)
 
-    line2, = ax2.plot([], [], lw=2, color='blue')
-    ax2.set_xlim(X.min(), X.max())
-    ax2.set_ylim(y_min, y_max)
-    ax2.set_title("Exact solution")
-    ax2.set_xlabel("x")
-    ax2.grid(True)
+        line2, = ax2.plot([], [], lw=2, color='blue')
+        ax2.set_xlim(X.min(), X.max())
+        ax2.set_ylim(y_min, y_max)
+        ax2.set_title("Exact solution")
+        ax2.set_xlabel("x")
+        ax2.grid(True)
 
-    def init():
-        line1.set_data([], [])
-        line2.set_data([], [])
-        return (line1, line2)
+        def init():
+            line1.set_data([], [])
+            line2.set_data([], [])
+            return (line1, line2)
 
-    def animate(i):
-        line1.set_data(X[i, :], U_pred[i, :])
-        line2.set_data(X[i, :], U_true[i, :])
-        fig.suptitle(f"t = {t_values[i]:.2f}")
-        return (line1, line2)
+        def animate(i):
+            line1.set_data(X[i, :], U_pred[i, :])
+            line2.set_data(X[i, :], U_true[i, :])
+            fig.suptitle(f"t = {t_values[i]:.2f}")
+            return (line1, line2)
 
-    ani = animation.FuncAnimation(fig, animate, init_func=init,
-                                  frames=len(t_values), interval=80, blit=True)
+        ani = animation.FuncAnimation(fig, animate, init_func=init,
+                                    frames=len(t_values), interval=80, blit=True)
 
-    ani.save(filename, writer="pillow", fps=15)
-    plt.close(fig)
-    print(f"GIF saved as '{filename}'")
+        ani.save(filename, writer="pillow", fps=15)
+        plt.close(fig)
+        print(f"GIF saved as '{filename}'")
 
 
-make_gif(X, T, u_pred, u_true, filename="pinn_solution.gif")
+    make_gif(X, T, u_pred, u_true, filename="pinn_solution.gif")

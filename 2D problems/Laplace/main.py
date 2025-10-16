@@ -149,7 +149,7 @@ class LaplacePinn(nn.Module):
 
         return loss, mse_pde.item(), mse_bnd.item()
 
-    def train(self, X_f, X_bnd, u_bnd, epochs=1000, lbgfs=True):
+    def train(self, X_f, X_bnd, u_bnd, epochs=1000, lbfgs=True):
         self.x_f = self.to_tensor(X_f[:, 0:1], requires_grad=True)
         self.y_f = self.to_tensor(X_f[:, 1:2], requires_grad=True)
 
@@ -178,7 +178,7 @@ class LaplacePinn(nn.Module):
                       f"bc = {mse_bnd:.3e}, "
                       f"Time = {elapsed:.2f} s")
 
-        if lbgfs:
+        if lbfgs:
             loss = self.optimizer_lbfgs.step(self.closure)
             elapsed = perf_counter() - self.start_time
             self.end_time = elapsed
@@ -262,7 +262,7 @@ if __name__ == "__main__":
     model = NeuralNet(input_dim=2, output_dim=1, hidden_layers=6, hidden_dim=50)
     pinn = LaplacePinn(model, w_f=1.0, w_bc=100.0, device=device)
 
-    pinn.train(X_f, X_b, u_b, epochs=5000, lbgfs=True)
+    pinn.train(X_f, X_b, u_b, epochs=5000, lbfgs=True)
     
     # saving model weights
     torch.save(pinn.state_dict(), "trained_model.pt")

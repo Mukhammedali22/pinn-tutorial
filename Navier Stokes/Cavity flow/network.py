@@ -204,7 +204,7 @@ class PINN(nn.Module):
                 f"pde = {self.loss_history['pde'][-1]:.3e}, "
                 f"ic = {self.loss_history['ic'][-1]:.3e}, "
                 f"bc = {self.loss_history['bc'][-1]:.3e}, "
-                f"Time = {self.end_time:.2f} s"
+                f"Time = {self.end_time:.2f} s, "
                 f"hh:mm:ss = {hours:02.0f}:{minutes:02.0f}:{seconds:02.0f}")
 
 

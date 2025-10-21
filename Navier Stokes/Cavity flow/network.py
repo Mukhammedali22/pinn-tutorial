@@ -1,16 +1,17 @@
 import torch
 import torch.nn as nn
+import numpy as np
 from time import perf_counter
 
 
 class PINN(nn.Module):
-    def __init__(self, lb, ub, nu=1.0, rho=1.0, layers=[3, 50, 50, 50, 50, 2], 
+    def __init__(self, lb, ub, nu=0.01, rho=1.0, layers=[3, 50, 50, 50, 50, 2], 
                  w_f=1.0, w_ic=1.0, w_bc=1.0, device="cpu"):
         super().__init__()
 
         self.device = torch.device(device)
-        self.lb = self.to_tensor(lb)
-        self.ub = self.to_tensor(ub)
+        self.lb = self.to_tensor(lb, data_type=torch.float64)
+        self.ub = self.to_tensor(ub, data_type=torch.float64)
 
         # constants
         self.nu = nu # viscosity
@@ -20,7 +21,7 @@ class PINN(nn.Module):
         self.w_bc = w_bc
 
         self.mse = nn.MSELoss()
-        self.net = self.build_network(layers).to(self.device)
+        self.net = self.build_network(layers).to(self.device).double()
         self.init_weights()
 
         self.lbfgs_step = 0
@@ -47,7 +48,8 @@ class PINN(nn.Module):
         self.optimizer_lbfgs = torch.optim.LBFGS(
             self.net.parameters(), lr=1.0,
             max_iter=50000, tolerance_grad=1e-8,
-            tolerance_change=1e-12, line_search_fn="strong_wolfe"
+            tolerance_change=1.0*np.finfo(float).eps, 
+            line_search_fn="strong_wolfe"
         )
 
     def save_model(self, path):
@@ -63,13 +65,13 @@ class PINN(nn.Module):
             create_graph=create_graph, retain_graph=retain_graph
         )[0]
     
-    def to_tensor(self, x_np, data_type=torch.float32, requires_grad=False):
+    def to_tensor(self, x_np, data_type=torch.float64, requires_grad=False):
         return torch.tensor(x_np, dtype=data_type, requires_grad=requires_grad, device=self.device)
 
-    def set_inputs(self, X, requires_grad=False):
-        x = self.to_tensor(X[:, 0:1], requires_grad=requires_grad)
-        y = self.to_tensor(X[:, 1:2], requires_grad=requires_grad)
-        t = self.to_tensor(X[:, 2:3], requires_grad=requires_grad)
+    def set_inputs(self, X, data_type=torch.float64, requires_grad=False):
+        x = self.to_tensor(X[:, 0:1], data_type=data_type, requires_grad=requires_grad)
+        y = self.to_tensor(X[:, 1:2], data_type=data_type, requires_grad=requires_grad)
+        t = self.to_tensor(X[:, 2:3], data_type=data_type, requires_grad=requires_grad)
         return x, y, t
      
     def pde_residual(self):
@@ -94,14 +96,15 @@ class PINN(nn.Module):
         p_x = self.gradients(p, self.t_f)
         p_y = self.gradients(p, self.y_f)
 
-        f = u_t + u*u_x + v*u_y + (1.0/self.rho)*p_x - self.nu*(u_xx + u_yy)
-        g = v_t + u*v_x + v*v_y + (1.0/self.rho)*p_y - self.nu*(v_xx + v_yy)
-
+        f = u_t + u*u_x + v*u_y + p_x/self.rho - self.nu*(u_xx + u_yy)
+        g = v_t + u*v_x + v*v_y + p_y/self.rho - self.nu*(v_xx + v_yy)
         return f, g
 
     def pde_loss(self):
         f, g = self.pde_residual()
-        return torch.mean(f**2) + torch.mean(g**2)
+        mse_f = torch.mean(f**2) 
+        mse_g = torch.mean(g**2)
+        return mse_f + mse_g
     
     def bc_loss(self):
         res = self.forward(torch.hstack([self.x_bnd, self.y_bnd, self.t_bnd]))
@@ -116,18 +119,23 @@ class PINN(nn.Module):
         inlet = (y == self.ub[1])
         h_wall = (y == self.lb[1])
         v_wall = (x == self.lb[0]) | (x == self.ub[0])
-        # print(inlet.shape, h_wall.shape, v_wall.shape)
-        # print(p[inlet].shape, p_x[v_wall].shape, p_y[h_wall].shape) 
-        p_loss = torch.hstack([p[inlet], p_x[v_wall], p_y[h_wall]])
-        p_loss = torch.mean(p[inlet]**2) + torch.mean(p_x[v_wall]**2) + torch.mean(p[h_wall]**2)
-        return torch.mean(p_loss) + self.mse(u_pred, self.u_bnd) + self.mse(v_pred, self.v_bnd)
+        p_loss = torch.hstack([p[inlet], p_x[v_wall], p_y[h_wall]]).reshape(-1, 1)
+
+        mse_p = torch.mean(p_loss**2)
+        mse_u = self.mse(u_pred, self.u_bnd)
+        mse_v = self.mse(v_pred, self.v_bnd)
+        return mse_p + mse_u + mse_v
     
     def ic_loss(self):
         res = self.forward(torch.hstack([self.x_ic, self.y_ic, self.t_ic]))
         psi, p = res[:, 0:1], res[:, 1:2]
         u_pred = self.gradients(psi, self.y_ic)
         v_pred = -self.gradients(psi, self.x_ic)
-        return torch.mean(p**2) + self.mse(u_pred, self.u_ic) + self.mse(v_pred, self.v_ic)
+
+        mse_p = torch.mean(p**2)
+        mse_u = self.mse(u_pred, self.u_ic)
+        mse_v = self.mse(v_pred, self.v_ic)
+        return mse_p + mse_u + mse_v
 
     def loss_function(self):
         mse_pde = self.pde_loss()
@@ -137,7 +145,7 @@ class PINN(nn.Module):
         loss = self.w_f * mse_pde + self.w_bc * mse_bnd + self.w_ic * mse_ic
         return loss, mse_pde.item(), mse_bnd.item(), mse_ic.item()
 
-    def train(self, X_f, X_bnd, U_bnd, X_ic, U_ic, lr=1e-3, epochs=1000, lbfgs=True):
+    def train(self, X_f, X_bnd, U_bnd, X_ic, U_ic, lr=1e-3, epochs=1000, adam=True, lbfgs=True):
         self.x_f, self.y_f, self.t_f = self.set_inputs(X_f, requires_grad=True)
         self.x_bnd, self.y_bnd, self.t_bnd = self.set_inputs(X_bnd, requires_grad=True)
         self.x_ic, self.y_ic, self.t_ic = self.set_inputs(X_ic, requires_grad=True)
@@ -148,30 +156,34 @@ class PINN(nn.Module):
         self.u_ic = self.to_tensor(U_ic[:, 0:1])
         self.v_ic = self.to_tensor(U_ic[:, 1:2])
 
+        if not adam and not lbfgs:
+            raise ValueError("At least one optimizer (Adam or L-BFGS) must be selected.")
+
         self.configure_optimizers(lr=lr)
-
         self.start_time = perf_counter()
-        for epoch in range(epochs):
-            self.optimizer.zero_grad()
 
-            loss, mse_pde, mse_bnd, mse_ic = self.loss_function()
-            loss.backward()
-            self.optimizer.step()
+        if adam:
+            for epoch in range(epochs):
+                self.optimizer.zero_grad()
 
-            self.loss_history['pde'].append(mse_pde)
-            self.loss_history['bc'].append(mse_bnd)
-            self.loss_history['ic'].append(mse_ic)
-            self.loss_history['total'].append(loss.item())
+                loss, mse_pde, mse_bnd, mse_ic = self.loss_function()
+                loss.backward()
+                self.optimizer.step()
 
-            if epoch % 100 == 0 or epoch == epochs - 1:
-                elapsed = perf_counter() - self.start_time
+                self.loss_history['pde'].append(mse_pde)
+                self.loss_history['bc'].append(mse_bnd)
+                self.loss_history['ic'].append(mse_ic)
+                self.loss_history['total'].append(loss.item())
 
-                print(f"[Adam] Epoch {epoch}/{epochs}, "
-                      f"Loss = {loss.item():.6e}, "
-                      f"pde = {mse_pde:.3e}, "
-                      f"ic = {mse_ic:.3e}, "
-                      f"bc = {mse_bnd:.3e}, "
-                      f"Time = {elapsed:.2f} s")
+                if epoch % 100 == 0 or epoch == epochs - 1:
+                    elapsed = perf_counter() - self.start_time
+
+                    print(f"[Adam] Epoch {epoch}/{epochs}, "
+                        f"Loss = {loss.item():.6e}, "
+                        f"pde = {mse_pde:.3e}, "
+                        f"ic = {mse_ic:.3e}, "
+                        f"bc = {mse_bnd:.3e}, "
+                        f"Time = {elapsed:.2f} s")
 
         if lbfgs:
             loss = self.optimizer_lbfgs.step(self.closure)
@@ -209,7 +221,6 @@ class PINN(nn.Module):
         self.lbfgs_step += 1
         return loss
 
-
     def predict(self, x, y, t):
         x = self.to_tensor(x, requires_grad=True).reshape(-1, 1)
         y = self.to_tensor(y, requires_grad=True).reshape(-1, 1)
@@ -218,8 +229,8 @@ class PINN(nn.Module):
         res = self.forward(torch.hstack([x, y, t]))
         psi, p = res[:, 0:1], res[:, 1:2]
         
-        u = self.gradients(psi, y,)
-        v = -self.gradients(psi, x,)
+        u = self.gradients(psi, y)
+        v = -self.gradients(psi, x)
 
         return (
             u.detach().cpu().numpy(),

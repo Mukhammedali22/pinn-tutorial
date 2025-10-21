@@ -187,7 +187,7 @@ class PINN(nn.Module):
                         f"ic = {mse_ic:.3e}, "
                         f"bc = {mse_bnd:.3e}, "
                         f"Time = {elapsed:.2f} s, "
-                        f"{hours}:{minutes:02d}:{seconds:02d}")
+                        f"hh:mm:ss = {hours:02.0f}:{minutes:02.0f}:{seconds:02.0f}")
 
         if lbfgs:
             loss = self.optimizer_lbfgs.step(self.closure)
@@ -205,7 +205,8 @@ class PINN(nn.Module):
                 f"ic = {self.loss_history['ic'][-1]:.3e}, "
                 f"bc = {self.loss_history['bc'][-1]:.3e}, "
                 f"Time = {self.end_time:.2f} s"
-                f"{hours}:{minutes:02d}:{seconds:02d}")
+                f"hh:mm:ss = {hours:02.0f}:{minutes:02.0f}:{seconds:02.0f}")
+
 
     def closure(self):
         self.optimizer_lbfgs.zero_grad()
@@ -230,7 +231,7 @@ class PINN(nn.Module):
                     f"ic = {mse_ic:.3e}, "
                     f"bc = {mse_bnd:.3e}, "
                     f"Time = {elapsed:.2f} s"
-                    f"{hours}:{minutes:02d}:{seconds:02d}")
+                    f"hh:mm:ss = {hours:02.0f}:{minutes:02.0f}:{seconds:02.0f}")
 
         self.lbfgs_step += 1
         return loss

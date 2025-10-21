@@ -48,7 +48,7 @@ class PINN(nn.Module):
         self.optimizer_lbfgs = torch.optim.LBFGS(
             self.net.parameters(), lr=1.0,
             max_iter=50000, tolerance_grad=1e-8,
-            tolerance_change=1.0*np.finfo(float).eps, 
+            tolerance_change=1e-12, 
             line_search_fn="strong_wolfe"
         )
 
@@ -177,18 +177,26 @@ class PINN(nn.Module):
 
                 if epoch % 100 == 0 or epoch == epochs - 1:
                     elapsed = perf_counter() - self.start_time
+                    hours = elapsed // 3600
+                    minutes = (elapsed % 3600) // 60
+                    seconds = elapsed % 60
 
                     print(f"[Adam] Epoch {epoch}/{epochs}, "
                         f"Loss = {loss.item():.6e}, "
                         f"pde = {mse_pde:.3e}, "
                         f"ic = {mse_ic:.3e}, "
                         f"bc = {mse_bnd:.3e}, "
-                        f"Time = {elapsed:.2f} s")
+                        f"Time = {elapsed:.2f} s, "
+                        f"{hours}:{minutes:02d}:{seconds:02d}")
 
         if lbfgs:
             loss = self.optimizer_lbfgs.step(self.closure)
             elapsed = perf_counter() - self.start_time
             self.end_time = elapsed
+
+            hours = elapsed // 3600
+            minutes = (elapsed % 3600) // 60
+            seconds = elapsed % 60
 
             print(f"[LBFGS] Optimization finished, final values\n"
                 f"[LBFGS] Iter {self.lbfgs_step}, "
@@ -196,7 +204,8 @@ class PINN(nn.Module):
                 f"pde = {self.loss_history['pde'][-1]:.3e}, "
                 f"ic = {self.loss_history['ic'][-1]:.3e}, "
                 f"bc = {self.loss_history['bc'][-1]:.3e}, "
-                f"Time = {self.end_time:.2f} s")
+                f"Time = {self.end_time:.2f} s"
+                f"{hours}:{minutes:02d}:{seconds:02d}")
 
     def closure(self):
         self.optimizer_lbfgs.zero_grad()
@@ -211,12 +220,17 @@ class PINN(nn.Module):
         if self.lbfgs_step % 100 == 0:
             elapsed = perf_counter() - self.start_time
 
+            hours = elapsed // 3600
+            minutes = (elapsed % 3600) // 60
+            seconds = elapsed % 60
+
             print(f"[LBFGS] Iter {self.lbfgs_step}, "
                     f"Loss = {loss.item():.6e}, "
                     f"pde = {mse_pde:.3e}, "
                     f"ic = {mse_ic:.3e}, "
                     f"bc = {mse_bnd:.3e}, "
-                    f"Time = {elapsed:.2f} s")
+                    f"Time = {elapsed:.2f} s"
+                    f"{hours}:{minutes:02d}:{seconds:02d}")
 
         self.lbfgs_step += 1
         return loss

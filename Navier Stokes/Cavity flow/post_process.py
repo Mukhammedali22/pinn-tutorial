@@ -217,7 +217,7 @@ np.savetxt("Output\\X.txt", X, delimiter='\t', fmt='%.4f')
 np.savetxt("Output\\Y.txt", Y, delimiter='\t', fmt='%.4f')
 
 plot_contour_field(X, Y, u_pred[-1], title="PINN U at t=1.0", save_path="Output\\u_pinn.png")
-plot_contour_field(X, Y, v_pred[-1], title="PINN P at t=1.0", save_path="Output\\v_pinn.png")
+plot_contour_field(X, Y, v_pred[-1], title="PINN V at t=1.0", save_path="Output\\v_pinn.png")
 plot_contour_field(X, Y, p_pred[-1], title="PINN P at t=1.0", save_path="Output\\p_pinn.png")
 
 plot_contour_field(X, Y, np.abs(u_pred[-1] - u_num[-1]), title="Absolute error at t=1.0",
@@ -229,4 +229,4 @@ plot_all_fields(X, Y, u_pred[-1], v_pred[-1], p_pred[-1], title_prefix="t = 1s",
 make_field_animation(X, Y, u_pred, t_values, U=u_pred, V=v_pred, 
                      title="PINN U(t,x,y)", save_path="Output\\U_pred.gif")
 make_field_animation(X, Y, v_pred, t_values, title="PINN V(t,x,y)", save_path="Output\\V_pred.gif")
-make_field_animation(X, Y, p_pred, t_values, title="PINN P(t,x,y)", save_path="Output\\P_pred.gif")
+make_field_animation(X, Y, p_pred, t_values, title="PINN P(x,y)", save_path="Output\\P_pred.gif")

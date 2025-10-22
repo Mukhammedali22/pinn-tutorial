@@ -63,10 +63,10 @@ if __name__ == "__main__":
     layers = [3, 50, 50, 50, 50, 2]
 
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    pinn = PINN(lb, ub, layers=layers, 
-                w_f=1.0, w_ic=100.0, w_bc=500.0, device=device)
+    pinn = PINN(lb, ub, layers=layers, nu=0.01, rho=1.0, 
+                w_f=1.0, w_ic=1.0, w_bc=1000.0, device=device)
 
-    pinn.train(X_f, X_b, U_b, X_i, U_i, lr=5e-4, epochs=15000, adam=True, lbfgs=True)
+    pinn.train(X_f, X_b, U_b, X_i, U_i, lr=1e-3, epochs=15000, adam=True, lbfgs=True)
     pinn.save_model("NS_pinn_model.pt")
 
     # pinn.load_model("NS_pinn_model.pt")

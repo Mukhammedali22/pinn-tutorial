@@ -230,7 +230,7 @@ class PINN(nn.Module):
                     f"pde = {mse_pde:.3e}, "
                     f"ic = {mse_ic:.3e}, "
                     f"bc = {mse_bnd:.3e}, "
-                    f"Time = {elapsed:.2f} s"
+                    f"Time = {elapsed:.2f} s, "
                     f"hh:mm:ss = {hours:02.0f}:{minutes:02.0f}:{seconds:02.0f}")
 
         self.lbfgs_step += 1

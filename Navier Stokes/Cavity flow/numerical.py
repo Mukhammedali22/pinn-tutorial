@@ -107,6 +107,13 @@ if __name__ == "__main__":
     set_boundary_V(V=V_old)
     set_boundary_P(P=P_old)
 
+    file_name = "num_sol.csv"
+    try:
+        with open(file_name, 'w') as f:
+            print("Okay")
+    except:
+        pass
+
     start_time = perf_counter()
     maximum = 1
     for i in range(int(stop_iteration)):
@@ -170,7 +177,7 @@ if __name__ == "__main__":
                 with open(file_name, 'a') as f:
                     np.savetxt(f, data, delimiter=',', fmt='%.6e')
 
-            sleep(0.5)
+            # sleep(0.5)
 
         if maximum < eps:
             print(f"Velocity field converged after {i} iteration")

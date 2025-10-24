@@ -10,8 +10,8 @@ class PINN(nn.Module):
         super().__init__()
 
         self.device = torch.device(device)
-        self.lb = self.to_tensor(lb, data_type=torch.float64)
-        self.ub = self.to_tensor(ub, data_type=torch.float64)
+        self.lb = self.to_tensor(lb)
+        self.ub = self.to_tensor(ub)
 
         # constants
         self.nu = nu # viscosity
@@ -21,7 +21,7 @@ class PINN(nn.Module):
         self.w_bc = w_bc
 
         self.mse = nn.MSELoss()
-        self.net = self.build_network(layers).to(self.device).double()
+        self.net = self.build_network(layers).to(self.device)
         self.init_weights()
 
         self.lbfgs_step = 0
@@ -65,10 +65,10 @@ class PINN(nn.Module):
             create_graph=create_graph, retain_graph=retain_graph
         )[0]
     
-    def to_tensor(self, x_np, data_type=torch.float64, requires_grad=False):
+    def to_tensor(self, x_np, data_type=torch.float32, requires_grad=False):
         return torch.tensor(x_np, dtype=data_type, requires_grad=requires_grad, device=self.device)
 
-    def set_inputs(self, X, data_type=torch.float64, requires_grad=False):
+    def set_inputs(self, X, data_type=torch.float32, requires_grad=False):
         x = self.to_tensor(X[:, 0:1], data_type=data_type, requires_grad=requires_grad)
         y = self.to_tensor(X[:, 1:2], data_type=data_type, requires_grad=requires_grad)
         t = self.to_tensor(X[:, 2:3], data_type=data_type, requires_grad=requires_grad)
@@ -93,7 +93,7 @@ class PINN(nn.Module):
         v_y = self.gradients(v, self.y_f)
         v_yy = self.gradients(v_y, self.y_f)
 
-        p_x = self.gradients(p, self.t_f)
+        p_x = self.gradients(p, self.x_f)
         p_y = self.gradients(p, self.y_f)
 
         f = u_t + u*u_x + v*u_y + p_x/self.rho - self.nu*(u_xx + u_yy)

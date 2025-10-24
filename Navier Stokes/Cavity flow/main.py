@@ -22,9 +22,9 @@ if __name__ == "__main__":
     lb = np.array([x_bounds[0], y_bounds[0], t_bounds[0]])
     ub = np.array([x_bounds[1], y_bounds[1], t_bounds[1]])
 
-    N = 5000 # collocation points
-    N_b = 500 # boundary points for each side
-    N_i = 1000 # initial points
+    N = 10000 # collocation points
+    N_b = 1000 # boundary points for each side
+    N_i = 2000 # initial points
 
     sampler = lambda dim: qmc.LatinHypercube(d=dim)
     X_f = sampler(lb.shape[0]).random(N)
@@ -57,21 +57,20 @@ if __name__ == "__main__":
 
     # print(X_b)
     U_b[(X_b[:, 1] == ub[1]), 0] = 1.0 # inlet, y=1
-
     print(X_f.shape, X_b.shape, U_b.shape, X_i.shape, U_i.shape)
 
     layers = [3, 50, 50, 50, 50, 2]
 
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     pinn = PINN(lb, ub, layers=layers, nu=0.01, rho=1.0, 
-                w_f=1.0, w_ic=1.0, w_bc=1000.0, device=device)
+                w_f=10.0, w_ic=10.0, w_bc=1000.0, device=device)
 
-    pinn.train(X_f, X_b, U_b, X_i, U_i, lr=1e-3, epochs=15000, adam=True, lbfgs=True)
+    pinn.train(X_f, X_b, U_b, X_i, U_i, lr=1e-3, epochs=5000, adam=True, lbfgs=True)
     pinn.save_model("NS_pinn_model.pt")
 
     # pinn.load_model("NS_pinn_model.pt")
 
-    nx, ny = (200, 200)
+    nx, ny = (100, 100)
     x_test = np.linspace(lb[0], ub[0], nx)
     y_test = np.linspace(lb[1], ub[1], ny)
     X, Y = np.meshgrid(x_test, y_test)

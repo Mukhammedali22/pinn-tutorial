@@ -135,13 +135,22 @@ def plot_all_fields(X, Y, u, v, p, title_prefix="", save_path=None):
     plt.show()
 
 
-def l2_relative_error(pred, true):
+def l2_error(pred, true):
     errors = []
     for i in range(pred.shape[0]):
         num = np.linalg.norm(pred[i].ravel() - true[i].ravel(), 2)
-        denom = np.linalg.norm(true[i].ravel(), 2)
-        errors.append(num / denom)
+        # denom = np.linalg.norm(true[i].ravel(), 2)
+        # errors.append(num / denom)
+        errors.append(num)
     return np.array(errors)
+
+
+def l1_error(pred, true):
+    errors = []
+    for i in range(pred.shape[0]):
+        errors.append(np.mean(np.abs(pred[i] - true[i])))
+    return np.array(errors)
+
 
 
 x_bounds = (0.0, 1.0)
@@ -180,29 +189,57 @@ for i in range(nt):
     v_pred[i] = v.reshape(X.shape)
     p_pred[i] = p.reshape(X.shape)
 
-l2_u = l2_relative_error(u_pred, u_num)
-l2_v = l2_relative_error(v_pred, v_num)
-l2_p = l2_relative_error(p_pred, p_num)
+l2_u = l2_error(u_pred[1:], u_num[1:])
+l2_v = l2_error(v_pred[1:], v_num[1:])
+l2_p = l2_error(p_pred[1:], p_num[1:])
+
+print(f"l1 norm u = {np.mean(np.abs(u_pred - u_num)):.6e}")
+print(f"l1 norm v = {np.mean(np.abs(v_pred - v_num)):.6e}")
+print(f"l1 norm p = {np.mean(np.abs(p_pred - p_num)):.6e}")
+
+l1_u = l1_error(u_pred, u_num)
+l1_v = l1_error(v_pred, v_num)
+l1_p = l1_error(p_pred, p_num)
 
 mean_u, mean_v, mean_p = np.mean(l2_u), np.mean(l2_v), np.mean(l2_p)
 print(f"Mean relative L2 error:")
 print(f"U: {mean_u:.4e}, V: {mean_v:.4e}, P: {mean_p:.4e}")
 
-total_l2_u = np.linalg.norm(u_pred - u_num) / np.linalg.norm(u_num)
-total_l2_v = np.linalg.norm(v_pred - v_num) / np.linalg.norm(v_num)
-total_l2_p = np.linalg.norm(p_pred - p_num) / np.linalg.norm(p_num)
+mean_u_l1, mean_v_l1, mean_p_l1 = np.mean(l1_u), np.mean(l1_v), np.mean(l1_p)
+print(f"Mean relative L1 error:")
+print(f"U: {mean_u_l1:.4e}, V: {mean_v_l1:.4e}, P: {mean_p_l1:.4e}")
+
+
+total_l2_u = np.linalg.norm(u_pred[1:] - u_num[1:]) 
+total_l2_v = np.linalg.norm(v_pred[1:] - v_num[1:]) 
+total_l2_p = np.linalg.norm(p_pred[1:] - p_num[1:])
 print(f"Global relative L2 error: U={total_l2_u:.4e}, V={total_l2_v:.4e}, P={total_l2_p:.4e}")
 
 plt.figure(figsize=(7, 5))
-plt.plot(t_values, l2_u, label=r'$L_2(u)$', lw=2)
-plt.plot(t_values, l2_v, label=r'$L_2(v)$', lw=2)
-plt.plot(t_values, l2_p, label=r'$L_2(p)$', lw=2)
+plt.plot(t_values, l1_u, label=r'$L_1(u)$', lw=2)
+plt.plot(t_values, l1_v, label=r'$L_1(v)$', lw=2)
+plt.plot(t_values, l1_p, label=r'$L_1(p)$', lw=2)
+plt.xlabel("Time")
+plt.ylabel(r"Relative $L_1$ Error")
+plt.title("L1 Error Evolution over Time")
+plt.legend()
+plt.grid(True, ls="--", alpha=0.6)
+plt.tight_layout()
+plt.savefig("l1 norm.png")
+plt.show()
+
+
+plt.figure(figsize=(7, 5))
+plt.plot(t_values[1:], l2_u, label=r'$L_2(u)$', lw=2)
+plt.plot(t_values[1:], l2_v, label=r'$L_2(v)$', lw=2)
+plt.plot(t_values[1:], l2_p, label=r'$L_2(p)$', lw=2)
 plt.xlabel("Time")
 plt.ylabel(r"Relative $L_2$ Error")
 plt.title("L2 Error Evolution over Time")
 plt.legend()
 plt.grid(True, ls="--", alpha=0.6)
 plt.tight_layout()
+plt.savefig("l2 norm.png")
 plt.show()
 
 np.savetxt("Output\\U_num.txt", u_num[-1], delimiter='\t', fmt='%.6f')
@@ -213,6 +250,10 @@ np.savetxt("Output\\U_pinn.txt", u_pred[-1], delimiter='\t', fmt='%.6f')
 np.savetxt("Output\\V_pinn.txt", v_pred[-1], delimiter='\t', fmt='%.6f')
 np.savetxt("Output\\P_pinn.txt", p_pred[-1], delimiter='\t', fmt='%.6f')
 
+np.savetxt("Output\\U0_pinn.txt", u_pred[0], delimiter='\t', fmt='%.6f')
+np.savetxt("Output\\V0_pinn.txt", v_pred[0], delimiter='\t', fmt='%.6f')
+np.savetxt("Output\\P0_pinn.txt", p_pred[0], delimiter='\t', fmt='%.6f')
+
 np.savetxt("Output\\X.txt", X, delimiter='\t', fmt='%.4f')
 np.savetxt("Output\\Y.txt", Y, delimiter='\t', fmt='%.4f')
 
@@ -220,11 +261,14 @@ plot_contour_field(X, Y, u_pred[-1], title="PINN U at t=1.0", save_path="Output\
 plot_contour_field(X, Y, v_pred[-1], title="PINN V at t=1.0", save_path="Output\\v_pinn.png")
 plot_contour_field(X, Y, p_pred[-1], title="PINN P at t=1.0", save_path="Output\\p_pinn.png")
 
-plot_contour_field(X, Y, np.abs(u_pred[-1] - u_num[-1]), title="Absolute error at t=1.0",
+plot_contour_field(X, Y, np.abs((u_pred[-1] - u_num[-1])), title="Absolute error at t=1.0",
                     save_path="Output\\Absolute error plot.png")
 
 plot_all_fields(X, Y, u_pred[-1], v_pred[-1], p_pred[-1], title_prefix="t = 1s", 
                     save_path="Output\\uvp.png")
+plot_all_fields(X, Y, u_pred[0], v_pred[0], p_pred[0], title_prefix="t = 0s", 
+                    save_path="Output\\uvp0.png")
+
 
 make_field_animation(X, Y, u_pred, t_values, U=u_pred, V=v_pred, 
                      title="PINN U(t,x,y)", save_path="Output\\U_pred.gif")
